@@ -50,6 +50,11 @@ const Form: React.FC = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [error, setError] = useState({
+    cities: '',
+    specialties: '',
+    doctor: '',
+  });
 
   useEffect(() => {
     fetchCities()
@@ -57,7 +62,10 @@ const Form: React.FC = () => {
         setCities(response.data);
       })
       .catch((error) => {
-        console.error('Failed to fetch cities:', error);
+        setError((prevError) => ({
+          ...prevError,
+          cities: `Cities error: ${error}`,
+        }));
       });
 
     fetchSpecialties()
@@ -65,7 +73,10 @@ const Form: React.FC = () => {
         setSpecialties(response.data);
       })
       .catch((error) => {
-        console.error('Failed to fetch specialties:', error);
+        setError((prevError) => ({
+          ...prevError,
+          specialties: `Specialties error: ${error}`,
+        }));
       });
 
     fetchDoctors()
@@ -73,7 +84,10 @@ const Form: React.FC = () => {
         setDoctors(response.data);
       })
       .catch((error) => {
-        console.error('Failed to fetch doctors:', error);
+        setError((prevError) => ({
+          ...prevError,
+          doctor: `Doctors error: ${error}`,
+        }));
       });
   }, []);
 
@@ -138,9 +152,23 @@ const Form: React.FC = () => {
   ) => {
     const { name, value } = event.target;
     const formattedValue = value
-      .replace(/\D/g, '')
-      .replace(/^(\d{2})/, '$1/')
-      .replace(/^(.{5})(\d)/, '$1/$2');
+    .replace(/\D/g, '')
+    .replace(/^(\d{2})(\d{1,2})/, (match, day, month) => {
+      if (parseInt(day, 10) > 31) {
+        day = '31';
+      }
+      if (parseInt(month, 10) > 12) {
+        month = '12';
+      }
+      return `${day}/${month}`;
+    })
+    .replace(/^(.{5})(\d+)/, (match, prefix, year) => {
+      const currentYear = new Date().getFullYear();
+      if (parseInt(year, 10) > currentYear) {
+        year = currentYear.toString();
+      }
+      return `${prefix}/${year}`;
+    });
     formik.setFieldValue(name, formattedValue);
   };
   const filterHandleBirthday = (doctor: Doctor) => {
@@ -203,7 +231,7 @@ const Form: React.FC = () => {
       );
       console.log(selectedDoctor);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctors, formik.values.doctor]);
 
   return (
@@ -263,11 +291,15 @@ const Form: React.FC = () => {
           value={formik.values.city}
           error={formik.touched.city && !!formik.errors.city}
         >
-          {cities.map((city) => (
-            <MenuItem key={city.id} value={city.name}>
-              {city.name}
-            </MenuItem>
-          ))}
+          {!error.cities ? (
+            cities.map((city) => (
+              <MenuItem key={city.id} value={city.name}>
+                {city.name}
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem disabled>{error.cities}</MenuItem>
+          )}
         </Select>
       </FormControl>
       <FormControl variant="outlined" fullWidth>
@@ -282,15 +314,16 @@ const Form: React.FC = () => {
           error={
             formik.touched.specialty && !!formik.errors.specialty
           }
-          
         >
-          {specialties.map((specialty) =>
-            filterSpecialtiesBySex(specialty) && 
-              <MenuItem  key={specialty.id} value={specialty.name}>
-                {specialty.name}
-              </MenuItem>
-            
-          )}
+          {!error.specialties ? specialties.map(
+            (specialty) =>
+              filterSpecialtiesBySex(specialty) && (
+                <MenuItem key={specialty.id} value={specialty.name}>
+                  {specialty.name}
+                </MenuItem>
+              )
+          ) : <MenuItem disabled>{error.specialties}</MenuItem>
+          }
         </Select>
       </FormControl>
       <FormControl variant="outlined" fullWidth>
@@ -307,21 +340,25 @@ const Form: React.FC = () => {
           {doctors
             .filter(filterHandleBirthday)
             .filter(filterDoctorsByCity)
-            .filter(filterDoctorsBySpecialty)
-            .map((doctor) => (
-              <MenuItem
-                key={doctor.id}
-                value={doctor.name}
-              >
-                {doctor.name} {doctor.surname}
-              </MenuItem>
-            ))}
+            .filter(filterDoctorsBySpecialty).length ? (
+            doctors
+              .filter(filterHandleBirthday)
+              .filter(filterDoctorsByCity)
+              .filter(filterDoctorsBySpecialty)
+              .map((doctor) => (
+                <MenuItem key={doctor.id} value={doctor.name}>
+                  {doctor.name} {doctor.surname}
+                </MenuItem>
+              ))
+          ) : error.doctor ? (
+            <MenuItem disabled >{error.doctor}</MenuItem>
+          ) : <MenuItem disabled >Doctors not found</MenuItem>}
         </Select>
       </FormControl>
       <TextField
         id="email"
         name="email"
-        type='mail'
+        type="mail"
         label="Email"
         variant="outlined"
         onChange={formik.handleChange}
