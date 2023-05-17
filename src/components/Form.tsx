@@ -123,7 +123,15 @@ const Form: React.FC = () => {
       if (!values.email && !values.mobile) {
         errors.email = 'At least one field is required';
         errors.mobile = 'At least one field is required';
+      } else {
+        if (values.email && !/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(values.email)) {
+          errors.email = 'Invalid email format';
+        }
+        if (values.mobile && !/^\d{10,14}$/.test(values.mobile)) {
+          errors.mobile = 'Invalid mobile number format';
+        }
       }
+      
 
       return errors;
     },
